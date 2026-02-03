@@ -53,6 +53,20 @@
             animation: float 4s ease-in-out infinite;
         }
     </style>
+    <script>
+      // Initialize global environment configuration
+      window.__env__ = window.__env__ || {};
+      
+      // Vite will replace this placeholder during the build process
+      const injectedKey = "__VITE_API_KEY_PLACEHOLDER__";
+      
+      // Fallback logic: Use injected key if available, otherwise use a default demo key
+      window.__env__.API_KEY = (injectedKey && injectedKey !== "__VITE_API_KEY_PLACEHOLDER__") 
+        ? injectedKey 
+        : "DEMO_STRATEGY_KEY_999";
+        
+      console.log("StartUpGenie: Environment initialized.");
+    </script>
 <script type="importmap">
 {
   "imports": {

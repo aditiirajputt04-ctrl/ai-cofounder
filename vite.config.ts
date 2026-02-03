@@ -5,15 +5,24 @@ import process from 'node:process';
 
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
-  // Set the third parameter to '' to load all envs regardless of the `VITE_` prefix.
-  // We use process.cwd() explicitly imported from node:process to resolve typing issues in Node.js tools.
   const env = loadEnv(mode, process.cwd(), '');
+  const apiKey = env.API_KEY || '';
   
   return {
-    plugins: [react()],
+    plugins: [
+      react(),
+      {
+        name: 'html-transform',
+        transformIndexHtml(html) {
+          // Replaces the placeholder in index.html with the actual API Key from the environment
+          return html.replace('__VITE_API_KEY_PLACEHOLDER__', apiKey);
+        },
+      },
+    ],
     define: {
-      // Injects the API_KEY from the environment (e.g. Netlify UI) into the build
-      'process.env.API_KEY': JSON.stringify(env.API_KEY),
+      // Map process.env.API_KEY to the global window variable for runtime flexibility
+      // This ensures the application code remains clean while supporting the window.__env__ requirement.
+      'process.env.API_KEY': 'window.__env__.API_KEY',
     },
     build: {
       outDir: 'dist',
