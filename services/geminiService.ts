@@ -5,17 +5,16 @@ import { StartupPlan } from "../types";
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const generateStartupPlan = async (userIdea: string, userName: string, userRole: string): Promise<StartupPlan> => {
-  // Using gemini-3-flash-preview for the best balance of speed and advanced intelligence features.
-  // This model is recommended for basic text tasks and supports thinking configurations.
+  // Fix: Upgraded to 'gemini-3-pro-preview' as business strategy analysis is a complex reasoning task.
+  // Removed maxOutputTokens to prevent truncated JSON responses, following recommendation to avoid it unless necessary.
   const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
+    model: 'gemini-3-pro-preview',
     contents: `Analyze: "${userIdea}". Founder: ${userName} (${userRole}).`,
     config: {
       systemInstruction: "You are a speed-optimized strategist. Provide a dense, high-impact JSON business blueprint. Be telegraphic. No conversational filler. Focus on high-signal market gaps. Output strictly JSON.",
       responseMimeType: "application/json",
-      maxOutputTokens: 1000, // Strictly limit output to reduce generation time
       // Thinking config is only available for Gemini 3 and 2.5 series models.
-      thinkingConfig: { thinkingBudget: 0 }, // Disable thinking for the absolute fastest response time.
+      thinkingConfig: { thinkingBudget: 0 }, // Disable thinking for the absolute fastest response time as requested by user system instructions.
       temperature: 0, // Deterministic, zero-hesitation output
       topP: 0.1, 
       responseSchema: {
@@ -80,6 +79,7 @@ export const generateStartupPlan = async (userIdea: string, userName: string, us
     }
   });
 
+  // Fix: Directly access the .text property as per GenerateContentResponse guidelines.
   if (!response.text) {
     throw new Error("Failed to generate plan");
   }

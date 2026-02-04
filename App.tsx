@@ -1,17 +1,20 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import Layout from './components/Layout';
 import Hero from './components/Hero';
-import IdeaForm from './components/IdeaForm';
 import LoadingScreen from './components/LoadingScreen';
-import ResultsDashboard from './components/ResultsDashboard';
-import AuthPage from './components/AuthPage';
 import SplashScreen from './components/SplashScreen';
 import WelcomePage from './components/WelcomePage';
-import UserProfile from './components/UserProfile';
-import AccountSetupPage from './components/AccountSetupPage';
 import { generateStartupPlan, getDemoPlan } from './services/geminiService';
+import { supabase } from './services/supabaseClient';
 import { AppState, StartupPlan, Theme } from './types';
+
+// Lazy loaded components for better initial bundle size
+const IdeaForm = lazy(() => import('./components/IdeaForm'));
+const ResultsDashboard = lazy(() => import('./components/ResultsDashboard'));
+const UserProfile = lazy(() => import('./components/UserProfile'));
+const AuthPage = lazy(() => import('./components/AuthPage'));
+const AccountSetupPage = lazy(() => import('./components/AccountSetupPage'));
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>('SPLASH');
@@ -23,21 +26,84 @@ const App: React.FC = () => {
   const [userName, setUserName] = useState('');
   const [userRole, setUserRole] = useState('Aspiring Entrepreneur');
 
+  const fetchProfile = useCallback(async (userId: string) => {
+    try {
+      const { data, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (profileError) {
+        if (profileError.code === 'PGRST116') {
+          setState('ONBOARDING');
+        } else {
+          setState('ONBOARDING');
+        }
+        return;
+      }
+
+      if (data) {
+        setUserName(data.full_name || '');
+        setUserRole(data.role || 'Aspiring Entrepreneur');
+        localStorage.setItem('user_name', data.full_name || '');
+        localStorage.setItem('user_role', data.role || 'Aspiring Entrepreneur');
+        if (data.avatar_url) {
+          localStorage.setItem('user_avatar', data.avatar_url);
+        }
+        
+        setState((prev) => 
+          ['LOGIN', 'REGISTER', 'SPLASH', 'WELCOME'].includes(prev) ? 'DASHBOARD' : prev
+        );
+      }
+    } catch (err) {
+      console.error("Critical Profile Error:", err);
+      setState('ONBOARDING');
+    }
+  }, []);
+
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as Theme;
     if (savedTheme) setTheme(savedTheme);
 
-    const savedName = localStorage.getItem('user_name');
-    const savedRole = localStorage.getItem('user_role');
-    if (savedName) setUserName(savedName);
-    if (savedRole) setUserRole(savedRole);
+    const initSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setIsLoggedIn(true);
+        await fetchProfile(session.user.id);
+      } else if (state === 'SPLASH') {
+        // Faster transition to welcome if no session found
+        setTimeout(() => setState(s => s === 'SPLASH' ? 'WELCOME' : s), 800);
+      }
+    };
+    initSession();
 
-    const session = localStorage.getItem('founder_session');
-    const persistentSession = localStorage.getItem('founder_session_persistent');
-    if (session === 'active' || persistentSession === 'active') {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session) {
+        setIsLoggedIn(true);
+        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+          await fetchProfile(session.user.id);
+        }
+      } else {
+        setIsLoggedIn(false);
+        setUserName('');
+        setUserRole('Aspiring Entrepreneur');
+        if (event === 'SIGNED_OUT') setState('WELCOME');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [fetchProfile]);
+
+  const handleAuthSuccess = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
       setIsLoggedIn(true);
+      await fetchProfile(session.user.id);
+    } else {
+      setState('DASHBOARD');
     }
-  }, []);
+  };
 
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
@@ -45,43 +111,40 @@ const App: React.FC = () => {
     localStorage.setItem('theme', newTheme);
   };
 
-  const handleStartProcess = (idea: string, name: string, role: string) => {
-    setUserName(name);
-    setUserRole(role);
+  const handleStartProcess = async (idea: string, name: string, role: string) => {
     setState('LOADING');
     setError(null);
     
-    generateStartupPlan(idea, name, role)
-      .then((generatedPlan) => {
-        setPlan(generatedPlan);
-        setState('RESULTS');
-      })
-      .catch((err) => {
-        console.error("AI Error:", err);
-        setError("Network Congestion. Falling back to Demo Mode.");
-        setPlan(getDemoPlan());
-        setTimeout(() => setState('RESULTS'), 1500);
-      });
+    try {
+      const generatedPlan = await generateStartupPlan(idea, name, role);
+      setPlan(generatedPlan);
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        supabase.from('blueprints').insert({
+          user_id: session.user.id,
+          idea,
+          plan: generatedPlan,
+          title: generatedPlan.pitchSummary.split('.')[0].slice(0, 40) + "..."
+        }).catch(e => console.error("Blueprint save failed:", e));
+      }
+      
+      setState('RESULTS');
+    } catch (err: any) {
+      console.error("AI Error:", err);
+      setError("Strategic engine timeout. Using tactical demo plan.");
+      setPlan(getDemoPlan());
+      setTimeout(() => setState('RESULTS'), 2000);
+    }
   };
 
-  const handleAuthSuccess = (remember: boolean) => {
-    setIsLoggedIn(true);
-    localStorage.setItem('founder_session', 'active');
-    if (remember) localStorage.setItem('founder_session_persistent', 'active');
-    
-    const savedName = localStorage.getItem('user_name');
-    setState(!savedName ? 'ONBOARDING' : 'DASHBOARD');
-  };
-
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    localStorage.removeItem('founder_session');
-    localStorage.removeItem('founder_session_persistent');
-    setState('WELCOME');
+  const handleLogout = async () => {
+    localStorage.clear(); // Faster cleanup
+    await supabase.auth.signOut();
   };
 
   const navigate = (s: AppState) => {
-    if (!isLoggedIn && (s === 'DASHBOARD' || s === 'CREATE' || s === 'PROFILE')) {
+    if (!isLoggedIn && ['DASHBOARD', 'CREATE', 'PROFILE'].includes(s)) {
       setState('LOGIN');
     } else {
       setState(s);
@@ -90,67 +153,97 @@ const App: React.FC = () => {
   };
 
   const renderContent = () => {
-    if (state === 'SPLASH') return <SplashScreen onComplete={() => setState('WELCOME')} />;
-    if (state === 'WELCOME') return <WelcomePage onContinue={() => navigate(isLoggedIn ? 'DASHBOARD' : 'LOGIN')} />;
-    if (state === 'LOGIN') return <AuthPage type="LOGIN" onSwitch={() => setState('REGISTER')} onSuccess={handleAuthSuccess} onBack={() => setState('WELCOME')} />;
-    if (state === 'REGISTER') return <AuthPage type="REGISTER" onSwitch={() => setState('LOGIN')} onSuccess={handleAuthSuccess} onBack={() => setState('WELCOME')} />;
-    if (state === 'ONBOARDING') return <AccountSetupPage onComplete={(n, r) => { setUserName(n); setUserRole(r); setState('DASHBOARD'); }} />;
-
+    if (state === 'SPLASH') return <SplashScreen onComplete={() => {}} />;
+    if (state === 'WELCOME') return <WelcomePage onContinue={() => navigate('LOGIN')} />;
+    
     return (
-      <Layout 
-        theme={theme} 
-        onToggleTheme={toggleTheme} 
-        isLoggedIn={isLoggedIn}
-        userName={userName}
-        onNavigate={navigate}
-        hideNav={state === 'LOADING'}
-      >
-        <div className="animate-fade-in min-h-[calc(100vh-64px)]">
-          {state === 'DASHBOARD' && (
-            <Hero 
-              onStart={() => setState('CREATE')} 
-              onShowDemo={() => { setPlan(getDemoPlan()); setState('RESULTS'); }}
-              userName={userName}
-              userRole={userRole}
-              isLoggedIn={isLoggedIn}
-            />
-          )}
-          
-          {state === 'CREATE' && (
-            <IdeaForm 
-              onSubmit={handleStartProcess} 
-              isLoading={false} 
-              initialName={userName}
-              initialRole={userRole}
-              onBack={() => setState('DASHBOARD')}
-            />
-          )}
+      <Suspense fallback={<LoadingScreen />}>
+        {state === 'LOGIN' && <AuthPage type="LOGIN" onSwitch={() => setState('REGISTER')} onSuccess={handleAuthSuccess} onBack={() => setState('WELCOME')} />}
+        {state === 'REGISTER' && <AuthPage type="REGISTER" onSwitch={() => setState('LOGIN')} onSuccess={handleAuthSuccess} onBack={() => setState('WELCOME')} />}
+        
+        {state === 'ONBOARDING' && (
+          <AccountSetupPage 
+            onComplete={async (n, r) => { 
+              const { data: { session } } = await supabase.auth.getSession();
+              if (session) {
+                const avatarUrl = localStorage.getItem('user_avatar') || '';
+                await supabase.from('profiles').upsert({
+                  id: session.user.id,
+                  full_name: n,
+                  role: r,
+                  avatar_url: avatarUrl,
+                  updated_at: new Date()
+                });
+              }
+              setUserName(n); 
+              setUserRole(r); 
+              setState('DASHBOARD'); 
+            }} 
+          />
+        )}
 
-          {state === 'LOADING' && <LoadingScreen />}
+        {['DASHBOARD', 'CREATE', 'RESULTS', 'PROFILE', 'LOADING'].includes(state) && (
+          <Layout 
+            theme={theme} 
+            onToggleTheme={toggleTheme} 
+            isLoggedIn={isLoggedIn}
+            userName={userName}
+            onNavigate={navigate}
+            hideNav={state === 'LOADING'}
+          >
+            <div className="animate-fade-in min-h-[calc(100vh-64px)]">
+              {state === 'DASHBOARD' && (
+                <Hero 
+                  onStart={() => navigate('CREATE')} 
+                  onShowDemo={() => { setPlan(getDemoPlan()); setState('RESULTS'); }}
+                  userName={userName}
+                  userRole={userRole}
+                  isLoggedIn={isLoggedIn}
+                />
+              )}
+              
+              {state === 'CREATE' && (
+                <IdeaForm 
+                  onSubmit={handleStartProcess} 
+                  isLoading={false} 
+                  initialName={userName}
+                  initialRole={userRole}
+                  onBack={() => setState('DASHBOARD')}
+                />
+              )}
 
-          {state === 'RESULTS' && plan && (
-            <ResultsDashboard plan={plan} onReset={() => setState('DASHBOARD')} />
-          )}
+              {state === 'LOADING' && <LoadingScreen />}
 
-          {state === 'PROFILE' && (
-            <UserProfile 
-              onBack={() => setState('DASHBOARD')} 
-              theme={theme}
-              onToggleTheme={toggleTheme}
-              onUserUpdate={(n, r) => { setUserName(n); setUserRole(r); }}
-              initialName={userName}
-              initialRole={userRole}
-              onLogout={handleLogout}
-            />
-          )}
-        </div>
+              {state === 'RESULTS' && plan && (
+                <ResultsDashboard plan={plan} onReset={() => setState('DASHBOARD')} />
+              )}
+
+              {state === 'PROFILE' && (
+                <UserProfile 
+                  onBack={() => setState('DASHBOARD')} 
+                  theme={theme}
+                  onToggleTheme={toggleTheme}
+                  onUserUpdate={async (n, r) => { 
+                    setUserName(n); 
+                    setUserRole(r); 
+                  }}
+                  initialName={userName}
+                  initialRole={userRole}
+                  onLogout={handleLogout}
+                  onOpenProject={(savedPlan) => { setPlan(savedPlan); setState('RESULTS'); }}
+                />
+              )}
+            </div>
+          </Layout>
+        )}
 
         {error && (
-          <div className="fixed bottom-8 right-8 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-6 py-4 rounded-2xl shadow-2xl z-[100] border border-slate-700 dark:border-slate-200 animate-bounce">
-            <p className="font-bold flex items-center gap-2">⚠️ {error}</p>
+          <div className="fixed bottom-8 right-8 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 py-4 rounded-2xl shadow-2xl z-[100] border border-slate-700 dark:border-slate-200 animate-bounce flex items-center gap-3">
+            <span className="text-xl">⚠️</span>
+            <p className="font-bold text-sm tracking-tight">{error}</p>
           </div>
         )}
-      </Layout>
+      </Suspense>
     );
   };
 

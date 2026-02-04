@@ -7,7 +7,8 @@ interface SplashScreenProps {
 
 const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
   useEffect(() => {
-    const timer = setTimeout(onComplete, 2500);
+    // Reduced duration for faster perceived load
+    const timer = setTimeout(onComplete, 1200);
     return () => clearTimeout(timer);
   }, [onComplete]);
 

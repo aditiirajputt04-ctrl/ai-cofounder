@@ -40,10 +40,16 @@ const ResultsDashboard: React.FC<ResultsDashboardProps> = ({ plan, onReset }) =>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12 bg-white/90 dark:bg-slate-900/80 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-300 dark:border-violet-500/20 shadow-2xl shadow-violet-500/5 transition-colors">
         <div className="flex items-center gap-5">
           <div className="w-14 h-14 bg-gradient-to-br from-violet-600 to-cyan-500 rounded-2xl flex items-center justify-center text-white font-black text-2xl shadow-xl shadow-violet-500/20">
-            {plan.pitchSummary.charAt(1).toUpperCase()}
+            {plan.pitchSummary.charAt(0).toUpperCase()}
           </div>
           <div>
-            <h1 className="text-2xl font-black text-slate-950 dark:text-white mb-1 tracking-tight">V1 Strategy Blueprint</h1>
+            <div className="flex items-center gap-3 mb-1">
+              <h1 className="text-2xl font-black text-slate-950 dark:text-white tracking-tight">V1 Strategy Blueprint</h1>
+              <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[8px] font-black uppercase tracking-widest rounded-md border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
+                <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></span>
+                Cloud Synced
+              </span>
+            </div>
             <p className="text-slate-800 dark:text-slate-400 text-[10px] font-black uppercase tracking-[0.3em]">
               Drafted for: <span className="text-violet-700 dark:text-cyan-400">{localStorage.getItem('user_name') || 'Founder'}</span>
             </p>
