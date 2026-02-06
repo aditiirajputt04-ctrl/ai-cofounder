@@ -1,10 +1,10 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { StartupPlan } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 export const generateStartupPlan = async (userIdea: string, userName: string, userRole: string): Promise<StartupPlan> => {
+  // Fix: Create a new GoogleGenAI instance right before making an API call to ensure it always uses the most up-to-date API key.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
   // Fix: Upgraded to 'gemini-3-pro-preview' as business strategy analysis is a complex reasoning task.
   // Removed maxOutputTokens to prevent truncated JSON responses, following recommendation to avoid it unless necessary.
   const response = await ai.models.generateContent({

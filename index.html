@@ -14,6 +14,7 @@
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
             background-color: #fdf2ff;
+            margin: 0;
         }
         .gradient-bg {
             background: 
@@ -27,67 +28,38 @@
                 radial-gradient(at 100% 0%, rgba(34, 211, 238, 0.1) 0px, transparent 50%),
                 #020617;
         }
-        .roadmap-line::before {
-            content: '';
-            position: absolute;
-            left: 31px;
-            top: 40px;
-            bottom: 0;
-            width: 2px;
-            background: linear-gradient(to bottom, #8b5cf6, #22d3ee, transparent);
-            opacity: 0.3;
-        }
-        @keyframes float {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-            100% { transform: translateY(0px); }
-        }
-        .animate-float {
-            animation: float 4s ease-in-out infinite;
-        }
     </style>
     <script>
-      // Initialize global environment configuration
-      window.__env__ = window.__env__ || {};
+      // Initialize global environment configuration before any other scripts load
+      window.__env__ = {
+        API_KEY: "__VITE_API_KEY_PLACEHOLDER__",
+        SUPABASE_URL: "__VITE_SUPABASE_URL_PLACEHOLDER__",
+        SUPABASE_ANON_KEY: "__VITE_SUPABASE_ANON_KEY_PLACEHOLDER__"
+      };
       
-      const injectedKey = "__VITE_API_KEY_PLACEHOLDER__";
-      const injectedSupaUrl = "__VITE_SUPABASE_URL_PLACEHOLDER__";
-      const injectedSupaKey = "__VITE_SUPABASE_ANON_KEY_PLACEHOLDER__";
-      
-      // Verification logic to check if placeholders were replaced during the build step
-      const isReplaced = (val) => val && val !== "" && !val.startsWith("__VITE");
+      // Cleanup placeholders if they weren't replaced during build
+      const cleanup = (key, fallback) => {
+        if (!window.__env__[key] || window.__env__[key].startsWith("__VITE") || window.__env__[key] === "") {
+          window.__env__[key] = fallback;
+        }
+      };
 
-      // Critical: API_KEY handling with fallback logic as requested
-      // In professional contexts, a fallback demo key ensures the UI doesn't break
-      // if the primary environment key is temporarily unavailable.
-      const DEMO_FALLBACK_KEY = ""; 
+      cleanup("API_KEY", "");
+      cleanup("SUPABASE_URL", "https://kgxltvabfoqdwdzdnzqf.supabase.co");
+      cleanup("SUPABASE_ANON_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtneGx0dmFiZm9xZHdkemRuenFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NjI1NjIsImV4cCI6MjA4NTUzODU2Mn0.V0oLdgqB-W9ndWI51HwKsA6d38deeqMHn-9-isQbmxY");
       
-      window.__env__.API_KEY = isReplaced(injectedKey) ? injectedKey : DEMO_FALLBACK_KEY;
-      
-      // Supabase credentials with production-ready fallbacks
-      window.__env__.SUPABASE_URL = isReplaced(injectedSupaUrl) 
-        ? injectedSupaUrl 
-        : "https://kgxltvabfoqdwdzdnzqf.supabase.co";
-        
-      window.__env__.SUPABASE_ANON_KEY = isReplaced(injectedSupaKey) 
-        ? injectedSupaKey 
-        : "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtneGx0dmFiZm9xZHdkemRuenFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NjI1NjIsImV4cCI6MjA4NTUzODU2Mn0.V0oLdgqB-W9ndWI51HwKsA6d38deeqMHn-9-isQbmxY";
-        
-      console.log("StartUpGenie: Runtime environment successfully mapped.");
-      if (!window.__env__.API_KEY && !DEMO_FALLBACK_KEY) {
-        console.warn("StartUpGenie: Warning - No Gemini API Key provided. Strategy generation will be unavailable.");
-      }
+      console.log("StartUpGenie: Runtime environment initialized.");
     </script>
 <script type="importmap">
 {
   "imports": {
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
     "react/": "https://esm.sh/react@^19.2.4/",
     "react": "https://esm.sh/react@^19.2.4",
-    "@google/genai": "https://esm.sh/@google/genai@^1.39.0",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.48.1",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.40.0",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.3",
     "vite": "https://esm.sh/vite@^7.3.1",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.3"
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.95.2"
   }
 }
 </script>

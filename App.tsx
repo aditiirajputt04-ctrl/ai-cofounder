@@ -35,11 +35,7 @@ const App: React.FC = () => {
         .single();
 
       if (profileError) {
-        if (profileError.code === 'PGRST116') {
-          setState('ONBOARDING');
-        } else {
-          setState('ONBOARDING');
-        }
+        setState('ONBOARDING');
         return;
       }
 
@@ -72,7 +68,6 @@ const App: React.FC = () => {
         setIsLoggedIn(true);
         await fetchProfile(session.user.id);
       } else if (state === 'SPLASH') {
-        // Faster transition to welcome if no session found
         setTimeout(() => setState(s => s === 'SPLASH' ? 'WELCOME' : s), 800);
       }
     };
@@ -139,7 +134,7 @@ const App: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    localStorage.clear(); // Faster cleanup
+    localStorage.clear();
     await supabase.auth.signOut();
   };
 
