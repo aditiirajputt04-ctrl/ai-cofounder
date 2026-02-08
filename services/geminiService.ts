@@ -2,89 +2,109 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { StartupPlan } from "../types";
 
 export const generateStartupPlan = async (userIdea: string, userName: string, userRole: string): Promise<StartupPlan> => {
-  // Fix: Create a new GoogleGenAI instance right before making an API call to ensure it always uses the most up-to-date API key.
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-  // Fix: Upgraded to 'gemini-3-pro-preview' as business strategy analysis is a complex reasoning task.
-  // Removed maxOutputTokens to prevent truncated JSON responses, following recommendation to avoid it unless necessary.
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
-    contents: `Analyze: "${userIdea}". Founder: ${userName} (${userRole}).`,
-    config: {
-      systemInstruction: "You are a speed-optimized strategist. Provide a dense, high-impact JSON business blueprint. Be telegraphic. No conversational filler. Focus on high-signal market gaps. Output strictly JSON.",
-      responseMimeType: "application/json",
-      // Thinking config is only available for Gemini 3 and 2.5 series models.
-      thinkingConfig: { thinkingBudget: 0 }, // Disable thinking for the absolute fastest response time as requested by user system instructions.
-      temperature: 0, // Deterministic, zero-hesitation output
-      topP: 0.1, 
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          refinedIdea: { type: Type.STRING },
-          targetUsers: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                userType: { type: Type.STRING },
-                painPoint: { type: Type.STRING }
-              },
-              required: ["userType", "painPoint"]
-            }
-          },
-          mvpFeatures: {
-            type: Type.OBJECT,
-            properties: {
-              mustHave: { type: Type.ARRAY, items: { type: Type.STRING } },
-              optional: { type: Type.ARRAY, items: { type: Type.STRING } }
-            }
-          },
-          monetization: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                modelName: { type: Type.STRING },
-                description: { type: Type.STRING }
-              }
-            }
-          },
-          pitchSummary: { type: Type.STRING },
-          swot: {
-            type: Type.OBJECT,
-            properties: {
-              strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
-              weaknesses: { type: Type.ARRAY, items: { type: Type.STRING } },
-              opportunities: { type: Type.ARRAY, items: { type: Type.STRING } },
-              threats: { type: Type.ARRAY, items: { type: Type.STRING } }
-            }
-          },
-          competitors: { 
-            type: Type.ARRAY, 
-            items: { 
-              type: Type.OBJECT,
-              properties: {
-                name: { type: Type.STRING },
-                marketPosition: { type: Type.STRING },
-                keyDifferentiator: { type: Type.STRING },
-                strategicGap: { type: Type.STRING }
-              },
-              required: ["name", "marketPosition", "keyDifferentiator", "strategicGap"]
-            } 
-          },
-          founderNote: { type: Type.STRING }
-        },
-        required: ["refinedIdea", "targetUsers", "mvpFeatures", "monetization", "pitchSummary", "swot", "competitors", "founderNote"]
-      }
-    }
-  });
-
-  // Fix: Directly access the .text property as per GenerateContentResponse guidelines.
-  if (!response.text) {
-    throw new Error("Failed to generate plan");
+  // Use process.env.API_KEY which is mapped from window.__env__.API_KEY by Vite
+  const apiKey = process.env.API_KEY;
+  
+  if (!apiKey || apiKey === "__VITE_API_KEY_PLACEHOLDER__" || apiKey === "") {
+    console.error("StartUpGenie: Gemini API Key is missing.");
+    throw new Error("Gemini API Key is not configured. Please set the API_KEY environment variable.");
   }
 
-  return JSON.parse(response.text.trim()) as StartupPlan;
+  const ai = new GoogleGenAI({ apiKey });
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Draft a business strategy for: "${userIdea}". Founder: ${userName} (${userRole}).`,
+      config: {
+        systemInstruction: "You are a world-class startup product strategist. Provide a high-impact, JSON business blueprint. Be concise and identify high-signal market opportunities. Output strictly valid JSON.",
+        responseMimeType: "application/json",
+        thinkingConfig: { thinkingBudget: 0 }, 
+        temperature: 0.1, 
+        topP: 0.9, 
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            refinedIdea: { type: Type.STRING },
+            targetUsers: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  userType: { type: Type.STRING },
+                  painPoint: { type: Type.STRING }
+                },
+                required: ["userType", "painPoint"]
+              }
+            },
+            mvpFeatures: {
+              type: Type.OBJECT,
+              properties: {
+                mustHave: { type: Type.ARRAY, items: { type: Type.STRING } },
+                optional: { type: Type.ARRAY, items: { type: Type.STRING } }
+              }
+            },
+            monetization: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  modelName: { type: Type.STRING },
+                  description: { type: Type.STRING }
+                }
+              }
+            },
+            pitchSummary: { type: Type.STRING },
+            swot: {
+              type: Type.OBJECT,
+              properties: {
+                strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
+                weaknesses: { type: Type.ARRAY, items: { type: Type.STRING } },
+                opportunities: { type: Type.ARRAY, items: { type: Type.STRING } },
+                threats: { type: Type.ARRAY, items: { type: Type.STRING } }
+              }
+            },
+            competitors: { 
+              type: Type.ARRAY, 
+              items: { 
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING },
+                  marketPosition: { type: Type.STRING },
+                  keyDifferentiator: { type: Type.STRING },
+                  strategicGap: { type: Type.STRING }
+                },
+                required: ["name", "marketPosition", "keyDifferentiator", "strategicGap"]
+              } 
+            },
+            founderNote: { type: Type.STRING }
+          },
+          required: ["refinedIdea", "targetUsers", "mvpFeatures", "monetization", "pitchSummary", "swot", "competitors", "founderNote"]
+        }
+      }
+    });
+
+    const text = response.text;
+    if (!text) {
+      throw new Error("AI returned an empty response. Check if content filters were triggered.");
+    }
+
+    return JSON.parse(text.trim()) as StartupPlan;
+  } catch (error: any) {
+    console.error("Gemini API Error Detail:", error);
+    
+    let errorMessage = error.message || "Unknown AI error occurred.";
+    
+    if (errorMessage.includes("429")) {
+      errorMessage = "AI Rate Limit reached. Please wait 60 seconds.";
+    } else if (errorMessage.includes("403") || errorMessage.includes("401")) {
+      errorMessage = "AI Key invalid or unauthorized. Please check your Netlify environment variables.";
+    } else if (errorMessage.includes("500")) {
+      errorMessage = "AI service is currently unavailable. Try again later.";
+    }
+    
+    throw new Error(errorMessage);
+  }
 };
 
 export const getDemoPlan = (): StartupPlan => ({

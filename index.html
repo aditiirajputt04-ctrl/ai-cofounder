@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -30,36 +29,36 @@
         }
     </style>
     <script>
-      // Initialize global environment configuration before any other scripts load
+      // Initialize global environment configuration
       window.__env__ = {
         API_KEY: "__VITE_API_KEY_PLACEHOLDER__",
         SUPABASE_URL: "__VITE_SUPABASE_URL_PLACEHOLDER__",
         SUPABASE_ANON_KEY: "__VITE_SUPABASE_ANON_KEY_PLACEHOLDER__"
       };
       
-      // Cleanup placeholders if they weren't replaced during build
-      const cleanup = (key, fallback) => {
-        if (!window.__env__[key] || window.__env__[key].startsWith("__VITE") || window.__env__[key] === "") {
-          window.__env__[key] = fallback;
-        }
-      };
+      // Fallback logic for production if placeholders aren't replaced by Vite
+      const isPlaceholder = (val) => !val || val.startsWith("__VITE") || val === "";
 
-      cleanup("API_KEY", "");
-      cleanup("SUPABASE_URL", "https://kgxltvabfoqdwdzdnzqf.supabase.co");
-      cleanup("SUPABASE_ANON_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtneGx0dmFiZm9xZHdkemRuenFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NjI1NjIsImV4cCI6MjA4NTUzODU2Mn0.V0oLdgqB-W9ndWI51HwKsA6d38deeqMHn-9-isQbmxY");
+      if (isPlaceholder(window.__env__.API_KEY)) window.__env__.API_KEY = "";
+      if (isPlaceholder(window.__env__.SUPABASE_URL)) {
+        window.__env__.SUPABASE_URL = "https://kgxltvabfoqdwdzdnzqf.supabase.co";
+      }
+      if (isPlaceholder(window.__env__.SUPABASE_ANON_KEY)) {
+        window.__env__.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtneGx0dmFiZm9xZHdkemRuenFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NjI1NjIsImV4cCI6MjA4NTUzODU2Mn0.V0oLdgqB-W9ndWI51HwKsA6d38deeqMHn-9-isQbmxY";
+      }
       
-      console.log("StartUpGenie: Runtime environment initialized.");
+      console.log("StartUpGenie: Environment initialized.");
     </script>
 <script type="importmap">
 {
   "imports": {
-    "react/": "https://esm.sh/react@^19.2.4/",
     "react": "https://esm.sh/react@^19.2.4",
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/",
     "@google/genai": "https://esm.sh/@google/genai@^1.40.0",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.3",
     "vite": "https://esm.sh/vite@^7.3.1",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.95.2"
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.3",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.95.3"
   }
 }
 </script>

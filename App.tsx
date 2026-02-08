@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import Layout from './components/Layout';
 import Hero from './components/Hero';
 import LoadingScreen from './components/LoadingScreen';
@@ -16,7 +15,7 @@ const UserProfile = lazy(() => import('./components/UserProfile'));
 const AuthPage = lazy(() => import('./components/AuthPage'));
 const AccountSetupPage = lazy(() => import('./components/AccountSetupPage'));
 
-const App: React.FC = () => {
+const App = () => {
   const [state, setState] = useState<AppState>('SPLASH');
   const [plan, setPlan] = useState<StartupPlan | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -114,22 +113,17 @@ const App: React.FC = () => {
       const generatedPlan = await generateStartupPlan(idea, name, role);
       setPlan(generatedPlan);
       
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        supabase.from('blueprints').insert({
-          user_id: session.user.id,
-          idea,
-          plan: generatedPlan,
-          title: generatedPlan.pitchSummary.split('.')[0].slice(0, 40) + "..."
-        }).catch(e => console.error("Blueprint save failed:", e));
-      }
+      // Removed Supabase insertion function as per user request
       
       setState('RESULTS');
     } catch (err: any) {
       console.error("AI Error:", err);
-      setError("Strategic engine timeout. Using tactical demo plan.");
+      const msg = err.message || "Failed to generate strategy blueprint.";
+      setError(msg);
+      
+      // Fallback to demo plan to prevent a broken experience
       setPlan(getDemoPlan());
-      setTimeout(() => setState('RESULTS'), 2000);
+      setTimeout(() => setState('RESULTS'), 3000);
     }
   };
 
@@ -218,6 +212,7 @@ const App: React.FC = () => {
                   onBack={() => setState('DASHBOARD')} 
                   theme={theme}
                   onToggleTheme={toggleTheme}
+                  onOpenProject={(savedPlan) => { setPlan(savedPlan); setState('RESULTS'); }}
                   onUserUpdate={async (n, r) => { 
                     setUserName(n); 
                     setUserRole(r); 
@@ -225,7 +220,6 @@ const App: React.FC = () => {
                   initialName={userName}
                   initialRole={userRole}
                   onLogout={handleLogout}
-                  onOpenProject={(savedPlan) => { setPlan(savedPlan); setState('RESULTS'); }}
                 />
               )}
             </div>
@@ -233,9 +227,10 @@ const App: React.FC = () => {
         )}
 
         {error && (
-          <div className="fixed bottom-8 right-8 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 py-4 rounded-2xl shadow-2xl z-[100] border border-slate-700 dark:border-slate-200 animate-bounce flex items-center gap-3">
+          <div className="fixed bottom-8 right-8 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 py-4 rounded-2xl shadow-2xl z-[100] border border-slate-700 dark:border-slate-200 animate-bounce flex items-center gap-3 max-w-xs">
             <span className="text-xl">⚠️</span>
-            <p className="font-bold text-sm tracking-tight">{error}</p>
+            <p className="font-bold text-xs tracking-tight">{error}</p>
+            <button onClick={() => setError(null)} className="ml-2 text-xs opacity-50 hover:opacity-100">✕</button>
           </div>
         )}
       </Suspense>
