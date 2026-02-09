@@ -7,7 +7,7 @@ export const generateStartupPlan = async (userIdea: string, userName: string, us
   
   if (!apiKey || apiKey === "__VITE_API_KEY_PLACEHOLDER__" || apiKey === "") {
     console.error("StartUpGenie: Gemini API Key is missing.");
-    throw new Error("Gemini API Key is not configured. Please set the API_KEY environment variable.");
+    throw new Error("Gemini API Key is not configured. Please set the API_KEY environment variable in your host settings (e.g., Netlify).");
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -20,7 +20,7 @@ export const generateStartupPlan = async (userIdea: string, userName: string, us
         systemInstruction: "You are a world-class startup product strategist. Provide a high-impact, JSON business blueprint. Be concise and identify high-signal market opportunities. Output strictly valid JSON.",
         responseMimeType: "application/json",
         thinkingConfig: { thinkingBudget: 0 }, 
-        temperature: 0.1, 
+        temperature: 0.2, 
         topP: 0.9, 
         responseSchema: {
           type: Type.OBJECT,
@@ -86,21 +86,26 @@ export const generateStartupPlan = async (userIdea: string, userName: string, us
 
     const text = response.text;
     if (!text) {
-      throw new Error("AI returned an empty response. Check if content filters were triggered.");
+      throw new Error("AI returned an empty response. This might be due to safety filters.");
     }
 
-    return JSON.parse(text.trim()) as StartupPlan;
+    try {
+      return JSON.parse(text.trim()) as StartupPlan;
+    } catch (parseError) {
+      console.error("JSON Parsing Error:", text);
+      throw new Error("The AI generated an invalid strategy format. Please try again.");
+    }
   } catch (error: any) {
     console.error("Gemini API Error Detail:", error);
     
     let errorMessage = error.message || "Unknown AI error occurred.";
     
     if (errorMessage.includes("429")) {
-      errorMessage = "AI Rate Limit reached. Please wait 60 seconds.";
+      errorMessage = "AI Rate Limit reached. Please wait 60 seconds and try again.";
     } else if (errorMessage.includes("403") || errorMessage.includes("401")) {
       errorMessage = "AI Key invalid or unauthorized. Please check your Netlify environment variables.";
     } else if (errorMessage.includes("500")) {
-      errorMessage = "AI service is currently unavailable. Try again later.";
+      errorMessage = "The AI service is currently unavailable. Google might be having issues.";
     }
     
     throw new Error(errorMessage);
